@@ -478,18 +478,7 @@ export class GameRoom {
 
   private checkAttackHits(attacker: ServerPlayer, damageScale: number): void {
     const a = attacker.state;
-    // Default to facing direction, but if moving, bias the attack direction to movement.
-    let attackDir = a.rotation;
-    const inputLen = Math.hypot(attacker.input.forward, attacker.input.right);
-    if (inputLen > 0.2) {
-      const sin = Math.sin(a.rotation);
-      const cos = Math.cos(a.rotation);
-      const mx = attacker.input.right * cos - attacker.input.forward * sin;
-      const mz = attacker.input.right * sin - attacker.input.forward * cos;
-      if (Math.hypot(mx, mz) > 0.001) {
-        attackDir = Math.atan2(-mx, -mz);
-      }
-    }
+    const attackDir = a.rotation;
     const now = Date.now();
 
     for (const [, target] of this.players) {
