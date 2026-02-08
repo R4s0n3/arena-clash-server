@@ -82,5 +82,5 @@ export interface MoveMessage extends ClientMessage {
 }
 
 export interface ActionMessage extends ClientMessage {
-  type: "attack" | "blockStart" | "blockEnd";
+  type: "attack" | "blockStart" | "blockEnd" | "jump";
 }

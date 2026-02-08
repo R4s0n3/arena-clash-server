@@ -13,11 +13,13 @@ const BLOCK_DAMAGE_REDUCTION = 0.8;
 const ATTACK_RANGE = 2.8;
 const ATTACK_ARC = Math.PI / 2; // 90 degrees
 const ATTACK_DURATION = 600; // ms
-const ATTACK_HIT_TIME = 250; // ms into attack when hit is checked
+const ATTACK_HIT_TIME = 220; // ms into attack when hit is checked
 const RESPAWN_TIME = 3000; // ms
 const TICK_RATE = 30; // server ticks per second
 const BROADCAST_RATE = 20; // state broadcasts per second
 const MAX_HEALTH = 100;
+const GRAVITY = 16; // units/s^2
+const JUMP_VELOCITY = 8.5; // units/s
 
 const PLAYER_COLORS = [
   "#e74c3c",
@@ -45,6 +47,7 @@ interface ServerPlayer {
   attackHitChecked: boolean;
   respawnTimer: number | null;
   lastInputTime: number;
+  yVelocity: number;
 }
 
 export class GameRoom {
@@ -101,6 +104,7 @@ export class GameRoom {
       attackHitChecked: false,
       respawnTimer: null,
       lastInputTime: Date.now(),
+      yVelocity: 0,
     };
 
     this.players.set(id, player);
@@ -207,6 +211,16 @@ export class GameRoom {
         }
         break;
       }
+      case "jump": {
+        if (
+          !player.state.isDead &&
+          player.state.y <= 0.001
+        ) {
+          player.yVelocity = JUMP_VELOCITY;
+          player.state.y = 0.001;
+        }
+        break;
+      }
     }
   }
 
@@ -247,7 +261,7 @@ export class GameRoom {
           const sin = Math.sin(rotation);
           const cos = Math.cos(rotation);
 
-          let dx = -right * cos - forward * sin;
+          let dx = right * cos - forward * sin;
           let dz = right * sin - forward * cos;
 
           // Normalize diagonal movement
@@ -267,6 +281,16 @@ export class GameRoom {
             s.x *= scale;
             s.z *= scale;
           }
+        }
+      }
+
+      // Vertical motion (jump/fall)
+      if (s.y > 0 || player.yVelocity > 0) {
+        player.yVelocity -= GRAVITY * dt;
+        s.y += player.yVelocity * dt;
+        if (s.y <= 0) {
+          s.y = 0;
+          player.yVelocity = 0;
         }
       }
     }
@@ -360,6 +384,8 @@ export class GameRoom {
     const spawn = this.getRandomSpawn();
     player.state.x = spawn.x;
     player.state.z = spawn.z;
+    player.state.y = 0;
+    player.yVelocity = 0;
     player.state.health = MAX_HEALTH;
     player.state.isDead = false;
     player.state.action = "idle";
