@@ -26,6 +26,7 @@ const DODGE_IFRAME_DURATION = 200; // invincibility frames in ms
 const ATTACK_DAMAGE = 22;
 const BLOCK_DAMAGE_REDUCTION = 0.75;
 const ATTACK_RANGE = 2.8;
+const ATTACK_RANGE_FUDGE = 0.35; // small forgiveness for latency / alignment
 const ATTACK_ARC = Math.PI / 2; // 90 degrees
 const COMBO_STEPS = [
   { duration: 480, hitTime: 170, dmg: 1.0 },
@@ -477,7 +478,18 @@ export class GameRoom {
 
   private checkAttackHits(attacker: ServerPlayer, damageScale: number): void {
     const a = attacker.state;
-    const attackDir = a.rotation;
+    // Default to facing direction, but if moving, bias the attack direction to movement.
+    let attackDir = a.rotation;
+    const inputLen = Math.hypot(attacker.input.forward, attacker.input.right);
+    if (inputLen > 0.2) {
+      const sin = Math.sin(a.rotation);
+      const cos = Math.cos(a.rotation);
+      const mx = attacker.input.right * cos - attacker.input.forward * sin;
+      const mz = attacker.input.right * sin - attacker.input.forward * cos;
+      if (Math.hypot(mx, mz) > 0.001) {
+        attackDir = Math.atan2(-mx, -mz);
+      }
+    }
     const now = Date.now();
 
     for (const [, target] of this.players) {
@@ -494,7 +506,7 @@ export class GameRoom {
       const dx = t.x - a.x;
       const dz = t.z - a.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > ATTACK_RANGE) continue;
+      if (dist > ATTACK_RANGE + ATTACK_RANGE_FUDGE) continue;
 
       // Arc check
       const angleToTarget = Math.atan2(-dx, -dz);
@@ -502,7 +514,9 @@ export class GameRoom {
       while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
       while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-      if (Math.abs(angleDiff) > ATTACK_ARC / 2) continue;
+      const arcOk = Math.abs(angleDiff) <= ATTACK_ARC / 2;
+      const closeOk = dist <= (ATTACK_RANGE * 0.6);
+      if (!arcOk && !closeOk) continue;
 
       // Hit! Calculate damage
       let damage = Math.round(ATTACK_DAMAGE * damageScale);
