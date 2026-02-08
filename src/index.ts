@@ -1,6 +1,6 @@
 import { WebSocketServer } from "ws";
 import http from "http";
-import { GameRoom } from "./GameRoom";
+import { GameRoom } from "./GameRoom.js";
 
 const PORT = Number(process.env.PORT) || 3001;
 const MAX_PLAYERS_PER_ROOM = 16;
