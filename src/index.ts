@@ -2,7 +2,11 @@ import { WebSocketServer } from "ws";
 import http from "http";
 import { GameRoom } from "./GameRoom.js";
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT =
+  process.env.NODE_ENV === "production" &&
+  process.env.PORT !== undefined
+    ? Number(process.env.PORT)
+    : 3001;
 const MAX_PLAYERS_PER_ROOM = 16;
 
 const server = http.createServer((_req, res) => {
