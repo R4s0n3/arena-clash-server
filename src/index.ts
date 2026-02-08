@@ -3,11 +3,10 @@ import http from "http";
 import { GameRoom } from "./GameRoom.js";
 
 const rawPort = process.env.PORT;
-const PORT = rawPort !== undefined ? Number(rawPort) : 3000;
+const PORT = rawPort !== undefined ? Number(rawPort) : 3001;
 const MAX_PLAYERS_PER_ROOM = 16;
 
 const server = http.createServer((_req, res) => {
-  // Health check endpoint for hosting providers
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Arena Clash server running");
 });
@@ -15,7 +14,6 @@ const server = http.createServer((_req, res) => {
 const wss = new WebSocketServer({
   server,
   verifyClient: ({ origin }, cb) => {
-    // Allow all origins (or restrict to your client domain)
     cb(true);
   },
 });
@@ -40,6 +38,23 @@ wss.on("connection", (ws) => {
 
 server.listen(PORT, () => {
   console.log(
-    `⚔️  Arena Clash server running on port ${PORT}`
+    `Arena Clash server running on port ${PORT}`
   );
 });
+
+// Graceful shutdown
+function shutdown() {
+  console.log("\nShutting down...");
+  for (const room of rooms) {
+    room.destroy();
+  }
+  wss.close();
+  server.close(() => {
+    process.exit(0);
+  });
+  // Force exit after 3s
+  setTimeout(() => process.exit(0), 3000);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

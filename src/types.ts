@@ -8,13 +8,16 @@ export interface PlayerState {
   rotation: number;
   health: number;
   maxHealth: number;
-  action: "idle" | "attacking" | "blocking";
+  stamina: number;
+  maxStamina: number;
+  action: "idle" | "attacking" | "blocking" | "dodging";
   attackTime: number;
   attackIndex: number;
   isDead: boolean;
   kills: number;
   deaths: number;
   color: string;
+  lastSeq: number; // last processed input sequence number (for client prediction)
 }
 
 export interface ServerMessage {
@@ -27,11 +30,13 @@ export interface WelcomeMessage extends ServerMessage {
   id: string;
   players: PlayerState[];
   arenaRadius: number;
+  tickRate: number;
 }
 
 export interface StateMessage extends ServerMessage {
   type: "state";
   players: PlayerState[];
+  serverTime: number;
 }
 
 export interface PlayerJoinedMessage extends ServerMessage {
@@ -50,12 +55,15 @@ export interface HitMessage extends ServerMessage {
   targetId: string;
   damage: number;
   targetHealth: number;
+  blocked: boolean;
 }
 
 export interface KillMessage extends ServerMessage {
   type: "kill";
   killerId: string;
+  killerName: string;
   targetId: string;
+  targetName: string;
 }
 
 export interface RespawnMessage extends ServerMessage {
@@ -77,11 +85,18 @@ export interface ClientMessage {
 
 export interface MoveMessage extends ClientMessage {
   type: "move";
+  seq: number; // sequence number for client-side prediction
   forward: number;
   right: number;
   rotation: number;
+  dt: number; // client delta time for this input
 }
 
 export interface ActionMessage extends ClientMessage {
-  type: "attack" | "blockStart" | "blockEnd" | "jump";
+  type: "attack" | "blockStart" | "blockEnd" | "jump" | "dodge";
+}
+
+export interface SetNameMessage extends ClientMessage {
+  type: "setName";
+  name: string;
 }
