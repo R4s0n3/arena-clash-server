@@ -529,6 +529,23 @@ export class GameRoom {
 
       t.health -= damage;
 
+      // Knockback direction: from attacker toward target
+      const kbDist = dist > 0.01 ? dist : 1;
+      const kbX = dx / kbDist;
+      const kbZ = dz / kbDist;
+      const kbForce = blocked ? 0.3 : (0.6 + damageScale * 0.4);
+
+      // Apply positional knockback on server
+      t.x += kbX * kbForce * 0.5;
+      t.z += kbZ * kbForce * 0.5;
+      // Clamp to arena
+      const kbDistFromCenter = Math.sqrt(t.x * t.x + t.z * t.z);
+      if (kbDistFromCenter > ARENA_RADIUS - 1) {
+        const kbScale = (ARENA_RADIUS - 1) / kbDistFromCenter;
+        t.x *= kbScale;
+        t.z *= kbScale;
+      }
+
       this.broadcast({
         type: "hit",
         attackerId: a.id,
@@ -536,6 +553,9 @@ export class GameRoom {
         damage,
         targetHealth: t.health,
         blocked,
+        kbX,
+        kbZ,
+        kbForce,
       });
 
       if (t.health <= 0) {
