@@ -12,8 +12,15 @@ const ATTACK_DAMAGE = 25;
 const BLOCK_DAMAGE_REDUCTION = 0.8;
 const ATTACK_RANGE = 2.8;
 const ATTACK_ARC = Math.PI / 2; // 90 degrees
-const ATTACK_DURATION = 600; // ms
-const ATTACK_HIT_TIME = 220; // ms into attack when hit is checked
+const COMBO_STEPS = [
+  { duration: 520, hitTime: 190, dmg: 1.0 },
+  { duration: 560, hitTime: 210, dmg: 1.1 },
+  { duration: 680, hitTime: 260, dmg: 1.25 },
+] as const;
+const COMBO_CHAIN_WINDOW = [
+  { start: 160, end: 420 },
+  { start: 180, end: 460 },
+] as const;
 const RESPAWN_TIME = 3000; // ms
 const TICK_RATE = 30; // server ticks per second
 const BROADCAST_RATE = 20; // state broadcasts per second
@@ -91,6 +98,7 @@ export class GameRoom {
       maxHealth: MAX_HEALTH,
       action: "idle",
       attackTime: 0,
+      attackIndex: 0,
       isDead: false,
       kills: 0,
       deaths: 0,
@@ -186,13 +194,24 @@ export class GameRoom {
         break;
       }
       case "attack": {
-        if (
-          player.state.action === "idle" &&
-          !player.state.isDead
-        ) {
+        if (player.state.isDead) break;
+        const now = Date.now();
+        if (player.state.action === "idle") {
           player.state.action = "attacking";
-          player.state.attackTime = Date.now();
+          player.state.attackTime = now;
+          player.state.attackIndex = 1;
           player.attackHitChecked = false;
+        } else if (player.state.action === "attacking") {
+          const step = player.state.attackIndex;
+          if (step >= 1 && step < 3) {
+            const elapsed = now - player.state.attackTime;
+            const window = COMBO_CHAIN_WINDOW[step - 1];
+            if (elapsed >= window.start && elapsed <= window.end) {
+              player.state.attackIndex = step + 1;
+              player.state.attackTime = now;
+              player.attackHitChecked = false;
+            }
+          }
         }
         break;
       }
@@ -235,19 +254,22 @@ export class GameRoom {
       // Handle attack timing
       if (s.action === "attacking") {
         const elapsed = now - s.attackTime;
+        const stepIndex = Math.max(1, Math.min(3, s.attackIndex));
+        const step = COMBO_STEPS[stepIndex - 1];
 
         // Check hit at the right moment
         if (
-          elapsed >= ATTACK_HIT_TIME &&
+          elapsed >= step.hitTime &&
           !player.attackHitChecked
         ) {
           player.attackHitChecked = true;
-          this.checkAttackHits(player);
+          this.checkAttackHits(player, step.dmg);
         }
 
         // End attack animation
-        if (elapsed >= ATTACK_DURATION) {
+        if (elapsed >= step.duration) {
           s.action = "idle";
+          s.attackIndex = 0;
         }
       }
 
@@ -296,7 +318,7 @@ export class GameRoom {
     }
   }
 
-  private checkAttackHits(attacker: ServerPlayer): void {
+  private checkAttackHits(attacker: ServerPlayer, damageScale: number): void {
     const a = attacker.state;
     const attackDir = a.rotation;
 
@@ -320,7 +342,7 @@ export class GameRoom {
       if (Math.abs(angleDiff) > ATTACK_ARC / 2) continue;
 
       // Hit! Calculate damage
-      let damage = ATTACK_DAMAGE;
+      let damage = Math.round(ATTACK_DAMAGE * damageScale);
       if (t.action === "blocking") {
         // Check if target is facing the attacker (blocking from front)
         const targetToAttacker = Math.atan2(
@@ -389,6 +411,7 @@ export class GameRoom {
     player.state.health = MAX_HEALTH;
     player.state.isDead = false;
     player.state.action = "idle";
+    player.state.attackIndex = 0;
     player.respawnTimer = null;
 
     this.broadcast({

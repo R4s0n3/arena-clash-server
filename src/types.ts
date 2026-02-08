@@ -10,6 +10,7 @@ export interface PlayerState {
   maxHealth: number;
   action: "idle" | "attacking" | "blocking";
   attackTime: number;
+  attackIndex: number;
   isDead: boolean;
   kills: number;
   deaths: number;
