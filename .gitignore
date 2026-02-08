@@ -1,0 +1,19 @@
+# .gitignore
+node_modules/
+dist/
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# Vite
+client/.vite/
+
+# Environment
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
